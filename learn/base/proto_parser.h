@@ -92,8 +92,9 @@ class ProtoParser : public ParserImpl<IndexType> {
 
 
       for (auto & ns_set: learn_namespaces_) {
+         IndexType val = 0U;
 
-         make_cartesian_product_of_namespaces(0, ns_set, sample, 1., 0U,
+         make_cartesian_product_of_namespaces(0, ns_set, sample, 1., val,
                  [&blk](const IndexType & feature, float value) {
                     blk.index.push_back(feature);
                     blk.value.push_back(value);

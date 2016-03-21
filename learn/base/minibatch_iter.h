@@ -41,7 +41,7 @@ class MinibatchIter {
     if (shuf_buf) {
       CHECK_GT(shuf_buf, minibatch_size);
       buf_reader_ =
-          new MinibatchIter(uri, part_index, num_parts, type, shuf_buf, 0);
+          new MinibatchIter(uri, part_index, num_parts, type, shuf_buf, 0, negative_sampling, namespaces);
       parser_ = NULL;
     } else {
       // create parser

@@ -38,6 +38,8 @@ class MinibatchScheduler : public IterScheduler {
   /// \brief if set, then run a prediction task
   std::string predict_out_;
 
+  /// \brief namespaces for product computing in proto parser
+
   /**
    * \brief a user-defined stop criteria. stop the system if returns true
    *
@@ -75,6 +77,8 @@ class MinibatchScheduler : public IterScheduler {
     model_in_              = conf.model_in();
     model_out_             = conf.model_out();
     predict_out_           = conf.predict_out();
+
+
   }
 
  public:
@@ -247,6 +251,7 @@ class MinibatchWorker : public IterWorker {
    */
   double workload_time_ = 0;
 
+  std::vector<std::vector<size_t>> learn_namespaces_;
   /**
    * \brief Process one minibatch
    */
@@ -302,7 +307,7 @@ class MinibatchWorker : public IterWorker {
     auto file = wl.file[0];
     dmlc::data::MinibatchIter<FeaID> reader(
         file.filename.c_str(), file.k, file.n, file.format.c_str(),
-        mb_size, shuffle, neg_sp);
+        mb_size, shuffle, neg_sp, &learn_namespaces_);
     reader.BeforeFirst();
     while (reader.Next()) {
       WaitMinibatch(max_mb);

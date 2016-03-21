@@ -233,6 +233,14 @@ class AsgdWorker : public solver::MinibatchWorker {
     shuffle_       = conf_.rand_shuffle();
     concurrent_mb_ = conf_.max_concurrency();
     neg_sampling_  = conf_.neg_sampling();
+    learn_namespaces_.resize(conf.learn_namespaces_size());
+    int ns_idx = 0;
+    for (const auto & ns_set: conf.learn_namespaces()) {
+        for (const auto & ns: ns_set.namespace_idxs()) {
+            learn_namespaces_[ns_idx].push_back(ns);
+        }
+        ns_idx++;
+    }
   }
   virtual ~AsgdWorker() { }
 

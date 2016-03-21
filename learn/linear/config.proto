@@ -131,4 +131,8 @@ message Config {
   /// convert floating-points into fixed-point integers with n bytes. n can be 1,
   /// 2 and 3. 0 means no compression.
   optional int32 fixed_bytes = 125 [default = 0];
+  message NamespaceSet {
+    repeated uint32 namespace_idxs = 1;
+  }
+  repeated NamespaceSet learn_namespaces = 126;
 }
