@@ -13,6 +13,7 @@
 #include "base/adfea_parser.h"
 #include "base/criteo_parser.h"
 #include "base/crb_parser.h"
+#include "base/proto_parser.h"
 #include "base/debug.h"
 namespace dmlc {
 namespace data {
@@ -23,13 +24,18 @@ namespace data {
  * @param if nonzero, then the minibatch is randomly picked from a buffer with
  * *shuf_buf* examples
  */
+
+
+
 template<typename IndexType>
 class MinibatchIter {
  public:
   MinibatchIter(const char* uri, unsigned part_index, unsigned num_parts,
                 const char* type, unsigned minibatch_size,
                 unsigned shuf_buf = 0,
-                float negative_sampling = 1.0)
+                float negative_sampling = 1.0,
+                const std::vector<std::vector<size_t>> * namespaces = nullptr
+                )
       : mb_size_(minibatch_size), shuf_buf_(shuf_buf),
         negative_sampling_(negative_sampling), start_(0), end_(0) {
     if (shuf_buf) {
@@ -54,6 +60,15 @@ class MinibatchIter {
       } else if (!strcmp(type, "crb")) {
         parser_ = new CRBParser<IndexType>(
             InputSplit::Create(uri, part_index, num_parts, "recordio"));
+      } else if (!strcmp(type, "proto")) {
+        if (namespaces) {
+            parser_ = new ProtoParser<IndexType>(
+                InputSplit::Create(uri, part_index, num_parts, "recordio"),
+                *namespaces
+            );
+        } else {
+            LOG(FATAL) << "need namespaces arg for " << type;
+        }
       } else {
         LOG(FATAL) << "unknown datatype " << type;
       }

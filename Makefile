@@ -34,7 +34,7 @@ core: | repo/dmlc-core glog					# always build
 # ps-lite
 repo/ps-lite:
 	git clone https://github.com/dmlc/ps-lite $@
-	cd $@; git checkout tags/v1; cd ..
+	cd $@; git checkout ipv6; cd ..
 
 repo/ps-lite/build/libps.a: | repo/ps-lite deps
 	+	$(MAKE) -C repo/ps-lite ps config=$(config) DEPS_PATH=$(DEPS_PATH) CXX=$(CXX)

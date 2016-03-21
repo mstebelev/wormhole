@@ -1,12 +1,9 @@
-package dmlc;
+package dmlc.data;
 message TrainingSample {
 	message Namespace {
-		message Feature {
-			required fixed64 id = 1;
-			optional float value = 2 [default = 1.];
-		}
-		repeated Feature features [packed=true]; 
+		repeated fixed64 features = 1 [packed=true]; 
+		repeated float values = 2 [packed=true]; 
 	}
 	optional bool label = 1;
-	repeated Namespace namespaces = 2 [packed=true];
+	repeated Namespace namespaces = 2;
 }
