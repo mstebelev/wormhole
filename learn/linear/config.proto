@@ -135,4 +135,5 @@ message Config {
     repeated uint32 namespace_idxs = 1;
   }
   repeated NamespaceSet learn_namespaces = 126;
+  optional float add_key_probability = 127;
 }

@@ -40,13 +40,20 @@ struct ISGDHandle {
     }
   }
 
+  bool NeedAdd(bool is_new) {
+      if (is_new) {
+          return rand() < add_key_probability * RAND_MAX;
+      }
+      return true;
+  }
+
   void Load(Stream* fi) { }
   void Save(Stream *fo) const { }
 
   L1L2<float> penalty;
 
   // learning rate
-  float alpha = 0.1, beta = 1;
+  float alpha = 0.1, beta = 1, add_key_probability = 1.;
 
   std::function<void(const Progress& prog)> reporter;
   static int64_t new_w;
@@ -88,10 +95,11 @@ struct SGDHandle : public ISGDHandle {
       t += 1;
     }
   }
-  inline void Push(FeaID key, Blob<const float> grad, SGDEntry& w) {
+  inline bool Push(FeaID key, Blob<const float> grad, SGDEntry& w, bool is_new) {
     float old_w = w.w;
     w.w = penalty.Solve(eta * w.w - grad[0], eta);
     Update(w.w, old_w);
+    return NeedAdd(is_new);
   }
 
   inline void Pull(FeaID key, const SGDEntry& w, Blob<float>& send) {
@@ -120,7 +128,7 @@ struct AdaGradEntry {
  * use alpha / ( beta + sqrt(sum_t grad_t^2)) as the learning rate
  */
 struct AdaGradHandle : public ISGDHandle {
-  inline void Push(FeaID key, Blob<const float> grad, AdaGradEntry& val) {
+  inline bool Push(FeaID key, Blob<const float> grad, AdaGradEntry& val, bool is_new) {
     // update cum grad
     float g = grad[0];
     float sqrt_n = val.sq_cum_grad;
@@ -132,6 +140,7 @@ struct AdaGradHandle : public ISGDHandle {
     val.w = penalty.Solve(eta * old_w - g, eta);
 
     Update(val.w, old_w);
+    return NeedAdd(is_new);
   }
 
   inline void Pull(FeaID key, const AdaGradEntry& val, Blob<float>& send) {
@@ -157,7 +166,7 @@ struct FTRLEntry {
  */
 struct FTRLHandle : public ISGDHandle {
  public:
-  inline void Push(FeaID key, Blob<const float> grad, FTRLEntry& val) {
+  inline bool Push(FeaID key, Blob<const float> grad, FTRLEntry& val, bool is_new) {
     // update cum grad
     float g = grad[0];
     float sqrt_n = val.sq_cum_grad;
@@ -172,6 +181,7 @@ struct FTRLHandle : public ISGDHandle {
     val.w = penalty.Solve(-val.z, (beta + val.sq_cum_grad) / alpha);
 
     Update(val.w, old_w);
+    return NeedAdd(is_new);
   }
 
   inline void Pull(FeaID key, const FTRLEntry& val, Blob<float>& send) {
@@ -204,6 +214,7 @@ class AsgdServer : public solver::MinibatchServer {
     h.penalty.set_lambda2(conf_.lambda_l2());
     if (conf_.has_lr_eta()) h.alpha = conf_.lr_eta();
     if (conf_.has_lr_beta()) h.beta = conf_.lr_beta();
+    if (conf_.has_add_key_probability()) h.add_key_probability = conf_.add_key_probability();
 
     h.reporter = [this](const Progress& prog) {
       ReportToScheduler(prog.data);

@@ -5,6 +5,7 @@
 #pragma once
 #include <limits>
 #include <city.h>
+#include <gflags/gflags.h>
 #include "data/row_block.h"
 #include "data/parser.h"
 #include "data/strtonum.h"
@@ -13,6 +14,7 @@
 namespace dmlc {
 namespace data {
 
+DEFINE_int32(max_features_for_record, 100000, "max features for one record");
 /**
  * \brief criteo ctr dataset:
  * The columns are tab separeted with the following schema:
@@ -89,17 +91,24 @@ class ProtoParser : public ParserImpl<IndexType> {
       sample.ParseFromArray(record.dptr, record.size);
       // parse label
       blk.label.push_back(sample.label());
+      size_t features_count = 0;
 
 
       for (auto & ns_set: learn_namespaces_) {
          IndexType val = 0U;
 
          make_cartesian_product_of_namespaces(0, ns_set, sample, 1., val,
-                 [&blk](const IndexType & feature, float value) {
-                    blk.index.push_back(feature);
-                    blk.value.push_back(value);
+                 [&blk, &features_count](const IndexType & feature, float value) {
+                    if (features_count < FLAGS_max_features_for_record) {
+                        blk.index.push_back(feature);
+                        blk.value.push_back(value);
+                    }
+                    features_count++;
                  }
          );
+      }
+      if (features_count >FLAGS_max_features_for_record) {
+          LOG(INFO) << "too many features " << features_count;
       }
 
       blk.offset.push_back(blk.index.size());
