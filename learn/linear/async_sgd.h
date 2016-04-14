@@ -80,6 +80,9 @@ struct SGDEntry {
   inline void Load(Stream *fi) { TLoad(fi, this); }
   inline void Save(Stream *fo) const { TSave(fo, this); }
   inline bool Empty() const { return w == 0; }
+  friend bool operator<(const SGDEntry & a, const SGDEntry & b) {
+      return fabs(a.w) < fabs(b.w);
+  }
 };
 
 /**
@@ -119,6 +122,9 @@ struct AdaGradEntry {
   inline void Load(Stream *fi) { TLoad(fi, this); }
   inline void Save(Stream *fo) const { TSave(fo, this); }
   inline bool Empty() const { return w == 0; }
+  friend bool operator<(const AdaGradEntry & a, const AdaGradEntry & b) {
+      return fabs(a.sq_cum_grad) < fabs(b.sq_cum_grad);
+  }
 };
 
 
@@ -159,6 +165,11 @@ struct FTRLEntry {
   inline void Load(Stream *fi) { TLoad(fi, this); }
   inline void Save(Stream *fo) const { TSave(fo, this); }
   inline bool Empty() const { return w == 0; }
+
+  friend inline bool operator<(const FTRLEntry & a, const FTRLEntry & b) {
+      return fabs(a.z) < fabs(b.z);
+  }
+
 };
 
 /**
@@ -187,7 +198,9 @@ struct FTRLHandle : public ISGDHandle {
   inline void Pull(FeaID key, const FTRLEntry& val, Blob<float>& send) {
     send[0] = val.w;
   }
+
 };
+
 
 
 class AsgdServer : public solver::MinibatchServer {
@@ -219,7 +232,7 @@ class AsgdServer : public solver::MinibatchServer {
     h.reporter = [this](const Progress& prog) {
       ReportToScheduler(prog.data);
     };
-    ps::OnlineServer<float, Entry, Handle> s(h);
+    ps::OnlineServer<float, Entry, Handle> s(h, 1, 1, ps::NextID(), conf_.max_keys());
     server_ = s.server();
   }
 

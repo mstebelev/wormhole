@@ -136,4 +136,5 @@ message Config {
   }
   repeated NamespaceSet learn_namespaces = 126;
   optional float add_key_probability = 127;
+  optional uint64 max_keys = 128 [default = 0];
 }
