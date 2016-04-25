@@ -19,8 +19,14 @@ message Config {
   /// model output filename
   optional string model_out = 5;
 
+  /// full state model output filename
+  optional string full_state_model_out = 129;
+
   /// model input filename
   optional string model_in = 7;
+
+  /// full state model input filename
+  optional string full_state_model_in = 130;
 
   /// the filename for prediction output. if specified, then run
   /// prediction. otherwise run training

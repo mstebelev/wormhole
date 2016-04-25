@@ -18,12 +18,18 @@ class MinibatchScheduler : public IterScheduler {
   /// \brief model input.
   std::string model_in_;
 
+  /// \brief full state model input
+  std::string full_state_model_in_;
+
   /// \brief load model from a particualr iteration. if 0, then load the last
   /// iteration
   int load_iter_ = 0;
 
   /// \brief model output
   std::string model_out_;
+
+  /// \brief full state model output
+  std::string full_state_model_out_;
 
   /// \brief save model for every k iterations. if 0, then only save the last
   /// iteration
@@ -75,10 +81,10 @@ class MinibatchScheduler : public IterScheduler {
     save_iter_             = conf.save_iter();
     load_iter_             = conf.load_iter();
     model_in_              = conf.model_in();
+    full_state_model_in_   = conf.full_state_model_in();
     model_out_             = conf.model_out();
+    full_state_model_out_  = conf.full_state_model_out();
     predict_out_           = conf.predict_out();
-
-
   }
 
  public:
@@ -98,7 +104,7 @@ class MinibatchScheduler : public IterScheduler {
     }
 
     int cur_iter = 0;
-    if (model_in_.size()) {
+    if (!model_in_.empty() || !full_state_model_in_.empty()) {
       if (load_iter_ > 0) {
         printf("Loading model from iter = %d\n", load_iter_);
         cur_iter = load_iter_;
@@ -106,8 +112,9 @@ class MinibatchScheduler : public IterScheduler {
         printf("Loading the last model\n");
         cur_iter = -1;
       }
-      Wait(LoadModel(model_in_, cur_iter));
-
+      bool full_state_mode = !full_state_model_in_.empty();
+      auto model_filename = full_state_mode ? full_state_model_in_ : model_in_;
+      Wait(LoadModel(model_filename, cur_iter, full_state_mode));
       Iterate(cur_iter, Workload::PRED);
       ++ cur_iter;
     }
@@ -127,13 +134,15 @@ class MinibatchScheduler : public IterScheduler {
       }
       if (model_out_.size() && save_iter_ > 0 && (cur_iter+1) % save_iter_ == 0) {
         printf("Saving model for iter = %d\n", cur_iter);
-        Wait(SaveModel(model_out_, cur_iter));
+        Wait(SaveModel(model_out_, cur_iter, /*full_state_mode=*/false));
       }
     }
 
-    if (model_out_.size()) {
-      printf("Saving the final model\n");
-      Wait(SaveModel(model_out_, -1));
+    if (!model_out_.empty()) {
+      Wait(SaveModel(model_out_, -1, /*full_state_mode=*/false));
+    }
+    if (!full_state_model_out_.empty()) {
+      Wait(SaveModel(full_state_model_out_, -1, /*full_state_mode=*/true));
     }
     printf("Training is finished!\n");
     return true;
@@ -147,10 +156,11 @@ class MinibatchScheduler : public IterScheduler {
       data_filename_ = train_data_;
       printf("Training: iter = %d\n", iter);
     } else {
-      data_filename_ = val_data_;
       if (type == Workload::PRED) {
+        data_filename_ = train_data_;
         printf("Predicting\n");
       } else {
+        data_filename_ = val_data_;
         printf("Validating: iter = %d\n", iter);
         if (data_filename_.empty()) return false;
       }
