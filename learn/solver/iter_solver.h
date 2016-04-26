@@ -19,10 +19,12 @@ struct IterCmd : public DataParCmd {
   void set_iter(int iter) { cmd |= (iter+1) << 16; }
   void set_load_model() { cmd |= 1<<1; }
   void set_save_model() { cmd |= 1<<2; }
+  void set_full_state_mode() { cmd |= 1<<3; }
 
   // accessors
-  bool load_model() const { return cmd & 1<<1; }
-  bool save_model() const { return cmd & 1<<2; }
+  bool load_model() const { return cmd & (1<<1); }
+  bool save_model() const { return cmd & (1<<2); }
+  bool full_state_mode() const { return cmd & (1<<3); }
   int iter() const { return (cmd >> 16)-1; }
 };
 
@@ -37,9 +39,17 @@ class IterScheduler : public DataParScheduler {
    * @param filename model filename
    * @param iter load from a particualr iteration. if -1, then load the last
    */
-  int LoadModel(const std::string& filename, int iter) {
-    IterCmd cmd; cmd.set_load_model(); cmd.set_iter(iter);
-    ps::Task task; task.set_cmd(cmd.cmd); task.set_msg(filename);
+  int LoadModel(const std::string& filename, int iter, bool full_state_mode) {
+    IterCmd cmd;
+    cmd.set_load_model();
+    if (full_state_mode)
+      cmd.set_full_state_mode();
+    cmd.set_iter(iter);
+
+    ps::Task task;
+    task.set_cmd(cmd.cmd);
+    task.set_msg(filename);
+
     return Submit(task, ps::kServerGroup);
   }
 
@@ -49,9 +59,17 @@ class IterScheduler : public DataParScheduler {
    * @param filename model filename
    * @param iter save for a particualr iteration. if -1, then saved as the last
    */
-  int SaveModel(const std::string& filename, int iter) {
-    IterCmd cmd; cmd.set_save_model(); cmd.set_iter(iter);
-    ps::Task task; task.set_cmd(cmd.cmd); task.set_msg(filename);
+  int SaveModel(const std::string& filename, int iter, bool full_state_mode) {
+    IterCmd cmd;
+    cmd.set_save_model();
+    if (full_state_mode)
+      cmd.set_full_state_mode();
+    cmd.set_iter(iter);
+
+    ps::Task task;
+    task.set_cmd(cmd.cmd);
+    task.set_msg(filename);
+
     return Submit(task, ps::kServerGroup);
   }
 
@@ -79,12 +97,12 @@ class IterServer : public ps::App {
   /**
    * \brief Save model to disk
    */
-  virtual void SaveModel(Stream* fo) const = 0;
+  virtual void SaveModel(Stream* fo, bool full_state_mode = false) const = 0;
 
   /**
    * \brief Load model from disk
    */
-  virtual void LoadModel(Stream* fi) = 0;
+  virtual void LoadModel(Stream* fi, bool full_state_mode = false) = 0;
 
   /**
    * \brief Report the progress to the scheduler
@@ -102,11 +120,11 @@ class IterServer : public ps::App {
     auto filename = ModelName(request->task.msg(), cmd.iter());
     if (cmd.save_model()) {
       Stream* fo = CHECK_NOTNULL(Stream::Create(filename.c_str(), "w"));
-      SaveModel(fo);
+      SaveModel(fo, cmd.full_state_mode());
       delete fo;
     } else if (cmd.load_model()) {
       Stream* fi = CHECK_NOTNULL(Stream::Create(filename.c_str(), "r"));
-      LoadModel(fi);
+      LoadModel(fi, cmd.full_state_mode());
       delete fi;
     }
   }
@@ -144,7 +162,7 @@ class IterWorker : public DataParWorker {
     auto in = wl.file[0].filename;
     size_t pos = in.find_last_of("/\\");
     auto in_base = pos == std::string::npos ? in : in.substr(pos+1);
-    auto out = filename + in_base + "_part-" + std::to_string(wl.file[0].k);
+    auto out = filename + in_base + "_part-" + std::to_string(wl.file[0].k) + "_predicted";
 
     if (out != prev_out_) {
       delete pred_out_;

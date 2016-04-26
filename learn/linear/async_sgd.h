@@ -47,8 +47,8 @@ struct ISGDHandle {
       return true;
   }
 
-  void Load(Stream* fi) { }
-  void Save(Stream *fo) const { }
+  void Load(Stream* fi, bool full_state_mode = false) { }
+  void Save(Stream *fo, bool full_state_mode = false) const { }
 
   L1L2<float> penalty;
 
@@ -63,13 +63,14 @@ struct ISGDHandle {
   int ns_ = 0;
 };
 
-template <typename T> inline void TLoad(Stream* fi, T* ptr) {
-  CHECK_EQ(fi->Read(&ptr->w, sizeof(float)), sizeof(float));
-  ISGDHandle::Update(ptr->w, 0);
+template <typename T>
+inline void LoadValue(Stream* fi, T * value) {
+  CHECK_EQ(fi->Read(value, sizeof(T)), sizeof(T));
 }
 
-template <typename T> inline void TSave(Stream* fo, T* const ptr) {
-  fo->Write(&ptr->w, sizeof(float));
+template <typename T>
+inline void SaveValue(Stream * fo, const T & value) {
+  fo->Write(&value, sizeof(T));
 }
 
 /**
@@ -77,8 +78,13 @@ template <typename T> inline void TSave(Stream* fo, T* const ptr) {
  */
 struct SGDEntry {
   float w = 0;
-  inline void Load(Stream *fi) { TLoad(fi, this); }
-  inline void Save(Stream *fo) const { TSave(fo, this); }
+  inline void Load(Stream *fi, bool full_state_mode = false) {
+    LoadValue(fi, &w);
+    ISGDHandle::Update(w, 0);
+  }
+  inline void Save(Stream *fo, bool full_state_mode = false) const {
+    SaveValue(fo, w);
+  }
   inline bool Empty() const { return w == 0; }
   friend bool operator<(const SGDEntry & a, const SGDEntry & b) {
       return fabs(a.w) < fabs(b.w);
@@ -119,8 +125,19 @@ struct AdaGradEntry {
   float w = 0;
   float sq_cum_grad = 0;  // sqrt(sum_t grad_t^2)
 
-  inline void Load(Stream *fi) { TLoad(fi, this); }
-  inline void Save(Stream *fo) const { TSave(fo, this); }
+  inline void Load(Stream *fi, bool full_state_mode = false) {
+    LoadValue(fi, &w);
+    if (full_state_mode) {
+      LoadValue(fi, &sq_cum_grad);
+    }
+    ISGDHandle::Update(w, 0);
+  }
+  inline void Save(Stream *fo, bool full_state_mode = false) const {
+    SaveValue(fo, w);
+    if (full_state_mode) {
+      SaveValue(fo, sq_cum_grad);
+    }
+  }
   inline bool Empty() const { return w == 0; }
   friend bool operator<(const AdaGradEntry & a, const AdaGradEntry & b) {
       return fabs(a.sq_cum_grad) < fabs(b.sq_cum_grad);
@@ -162,8 +179,22 @@ struct FTRLEntry {
   float z = 0;  // the smoothed version of - eta * w + grad
   float sq_cum_grad = 0; // sqrt(sum_t grad_t^2)
 
-  inline void Load(Stream *fi) { TLoad(fi, this); }
-  inline void Save(Stream *fo) const { TSave(fo, this); }
+  inline void Load(Stream *fi, bool full_state_mode = false) {
+    LoadValue(fi, &w);
+    if (full_state_mode) {
+      LoadValue(fi, &z);
+      LoadValue(fi, &sq_cum_grad);
+    }
+    ISGDHandle::Update(w, 0);
+  }
+  inline void Save(Stream *fo, bool full_state_mode = false) const {
+    SaveValue(fo, w);
+    if (full_state_mode) {
+      SaveValue(fo, z);
+      SaveValue(fo, sq_cum_grad);
+    }
+  }
+
   inline bool Empty() const { return w == 0; }
 
   friend inline bool operator<(const FTRLEntry & a, const FTRLEntry & b) {
@@ -236,14 +267,14 @@ class AsgdServer : public solver::MinibatchServer {
     server_ = s.server();
   }
 
-  virtual void LoadModel(Stream* fi) {
-    server_->Load(fi);
+  virtual void LoadModel(Stream* fi, bool full_state_mode) {
+    server_->Load(fi, full_state_mode);
     Progress prog; prog.new_w() = ISGDHandle::new_w; ReportToScheduler(prog.data);
     ISGDHandle::new_w = 0;
   }
 
-  virtual void SaveModel(Stream* fo) const {
-    server_->Save(fo);
+  virtual void SaveModel(Stream* fo, bool full_state_mode) const {
+    server_->Save(fo, full_state_mode);
   }
 
   Config conf_;
@@ -348,7 +379,10 @@ class AsgdScheduler : public solver::MinibatchScheduler {
   virtual std::string ProgHeader() { return Progress::HeadStr(); }
 
   virtual std::string ProgString(const solver::Progress& prog) {
-    prog_.data = prog;
+    if (!prog.empty()) {
+      prog_.data = prog;
+    }
+
     return prog_.PrintStr();
   }
  private:
