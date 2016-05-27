@@ -6,4 +6,5 @@ message TrainingSample {
 	}
 	optional bool label = 1;
 	repeated Namespace namespaces = 2;
+	optional float weight = 3;
 }

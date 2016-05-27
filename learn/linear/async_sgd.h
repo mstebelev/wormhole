@@ -263,7 +263,7 @@ class AsgdServer : public solver::MinibatchServer {
     h.reporter = [this](const Progress& prog) {
       ReportToScheduler(prog.data);
     };
-    ps::OnlineServer<float, Entry, Handle> s(h, 1, 1, ps::NextID(), conf_.max_keys());
+    ps::OnlineServer<float, Entry, Handle> s(h, 1, conf_.num_threads(), ps::NextID(), conf_.max_keys());
     server_ = s.server();
   }
 

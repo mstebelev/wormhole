@@ -115,7 +115,7 @@ class MinibatchScheduler : public IterScheduler {
       bool full_state_mode = !full_state_model_in_.empty();
       auto model_filename = full_state_mode ? full_state_model_in_ : model_in_;
       Wait(LoadModel(model_filename, cur_iter, full_state_mode));
-      Iterate(cur_iter, Workload::PRED);
+      //Iterate(cur_iter, Workload::PRED);
       ++ cur_iter;
     }
 

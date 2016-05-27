@@ -41,7 +41,15 @@ class ScalarLoss {
   /*! \brief evaluate the loss value */
   virtual void Evaluate(Progress* prog) {
     CHECK(init_);
-    prog->new_ex()  = data_.size;
+    if (data_.weight) {
+        V w = 0;
+        for (int i = 0; i < data_.size; ++i) {
+            w += data_.weight[i];
+        }
+        prog->new_ex() = w;
+    } else {
+        prog->new_ex() = data_.size;
+    }
     prog->count()   = 1;
   }
 
@@ -80,7 +88,7 @@ class BinClassLoss : public ScalarLoss<V> {
   using ScalarLoss<V>::nt_;
   virtual void Evaluate(Progress* prog) {
     ScalarLoss<V>::Evaluate(prog);
-    BinClassEval<V> eval(data_.label, Xw_.data(), Xw_.size(), nt_);
+    BinClassEval<V> eval(data_.label, Xw_.data(), data_.weight, Xw_.size(), nt_);
     prog->auc()     = eval.AUC();
     prog->acc()     = eval.Accuracy(0);
   }
@@ -99,7 +107,7 @@ class LogitLoss : public BinClassLoss<V> {
 
   virtual void Evaluate(Progress* prog) {
     BinClassLoss<V>::Evaluate(prog);
-    BinClassEval<V> eval(data_.label, Xw_.data(), Xw_.size(), nt_);
+    BinClassEval<V> eval(data_.label, Xw_.data(), data_.weight, Xw_.size(), nt_);
     prog->objv() = eval.LogitObjv();
   }
 
@@ -110,6 +118,9 @@ class LogitLoss : public BinClassLoss<V> {
     for (size_t i = 0; i < data_.size; ++i) {
       V y = data_.label[i] > 0 ? 1 : -1;
       dual[i] = - y / ( 1 + exp ( y * Xw_[i] ));
+      if (data_.weight) {
+          dual[i] *= data_.weight[i];
+      }
     }
     SpMV::TransTimes(data_, dual, grad, nt_);
   }
@@ -146,6 +157,9 @@ class SquareHingeLoss : public BinClassLoss<V> {
     for (size_t i = 0; i < data_.size; ++i) {
       V y = data_.label[i] > 0 ? 1 : -1;
       dual[i] = y * (y * Xw_[i] > 1.0);
+      if (data_.weight) {
+          dual[i] *= data_.weight[i];
+      }
     }
     SpMV::TransTimes(data_, dual, grad, nt_);
 

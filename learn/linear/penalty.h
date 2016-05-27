@@ -19,7 +19,13 @@ class L1L2 {
     CHECK_GE(lambda2, 0);
     lambda2_ = lambda2;
   }
+  T get_lambda1() const {
+      return lambda1_;
+  }
 
+  T get_lambda2() const {
+      return lambda2_;
+  }
   /**
    * \brief Solve the proximal operator:
    * \f$ \arg\min_x 0.5 * \beta * (x - z / \beta )^2 + h(x)\f$

@@ -1,3 +1,4 @@
+
 #pragma once
 #include <type_traits>
 #include <limits>
@@ -216,6 +217,10 @@ void Localizer<I>::RemapIndex(
   if (blk.label) {
     o->label.resize(blk.size);
     memcpy(o->label.data(), blk.label, blk.size*sizeof(real_t));
+  }
+  if (blk.weight) {
+    o->weight.resize(blk.size);
+    memcpy(o->weight.data(), blk.weight, blk.size*sizeof(real_t));
   }
   o->max_index = idx_dict.size() - 1;
 }

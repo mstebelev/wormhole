@@ -91,6 +91,9 @@ class ProtoParser : public ParserImpl<IndexType> {
       sample.ParseFromArray(record.dptr, record.size);
       // parse label
       blk.label.push_back(sample.label());
+      if (sample.has_weight()) {
+          blk.weight.push_back(sample.weight());
+      }
       size_t features_count = 0;
 
 
