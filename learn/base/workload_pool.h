@@ -160,6 +160,7 @@ class WorkloadPool {
         Assigned a;
         a.filename = it.first;
         a.start    = GetTime();
+        a.mean_multiplier = 2;
         a.node     = id;
         a.k        = (int)k;
         a.n        = (int)t.track.size();
@@ -183,13 +184,15 @@ class WorkloadPool {
     auto it = assigned_.begin();
     while (it != assigned_.end()) {
       double t = cur_t - it->start;
-      if (t > std::max(mean * 2, (double)5)) {
+      if (t > std::max(mean * it->mean_multiplier, (double)5)) {
         LOG(INFO) << it->node << " is processing "
                   << it->DebugStr() << " for " << t
                   << " sec, which is much longer than the average time "
                   << mean << " sec. reassign this workload to other nodes";
-        Mark(it->filename, it->k, 0);
-        it = assigned_.erase(it);
+        it->mean_multiplier += 1.;
+        ++it;
+        //Mark(it->filename, it->k, 0);
+        //it = assigned_.erase(it);
       } else {
         ++ it;
       }
@@ -230,6 +233,7 @@ class WorkloadPool {
     std::string node;
     int n, k;
     double start;  // start time
+    double mean_multiplier;
     Workload::File Get() {
       Workload::File f;
       f.filename = filename; f.n = n; f.k = k;

@@ -323,10 +323,15 @@ class MinibatchWorker : public IterWorker {
       WaitMinibatch(max_mb);
       ProcessMinibatch(reader.Value(), wl);
       mb_mu_.lock(); ++ num_mb_fly_; mb_mu_.unlock();
+      LOG(INFO) << "start minibatch " << wl.ShortDebugString();
     }
+
+    LOG(INFO) << wl.ShortDebugString() << " all minibatches sent, wait for " << num_mb_fly_ << " minibatches";
+
 
     // wait untill all are done
     WaitMinibatch(1);
+    LOG(INFO) << wl.ShortDebugString() << " finished";
   }
 
  private:
